@@ -1,0 +1,49 @@
+services:
+  # Two gates on the operator console:
+  # 1. Umbrel app_proxy (PROXY_AUTH_ADD=true) — dashboard login.
+  # 2. ttyd HTTP basic auth — username `bridge`, password = Umbrel
+  #    APP_PASSWORD (shown on the tile because deterministicPassword: true).
+  # Do not publish 7681 or tunnel this app to the public internet —
+  # the console can run login-cli (Proton credentials).
+  app_proxy:
+    environment:
+      APP_HOST: proton-bridge_bridge_1
+      APP_PORT: 7681
+      PROXY_AUTH_ADD: "true"
+
+  bridge:
+    # Pinned public image (multi-arch index). Do not use an unpinned tag —
+    # Umbrel rejects those at install. Tag "build" is Proton Bridge built
+    # from source (amd64/arm64).
+    image: shenxn/protonmail-bridge:build@sha256:514d19e289e039fb22e0a8196faaf4e84e4a1805de359ef8fa704785bb5783a1
+    restart: on-failure
+    init: true
+    stop_grace_period: 30s
+    # No $vars in this command — Umbrel interpolates compose before Docker.
+    entrypoint: ["/bin/bash", "-lc"]
+    command:
+      - >
+        command -v curl >/dev/null ||
+        (export DEBIAN_FRONTEND=noninteractive && apt-get update &&
+        apt-get install -y --no-install-recommends curl ca-certificates procps);
+        curl -fsSL
+        https://raw.githubusercontent.com/shillcock/umbrel-apps/main/proton-bridge/bridge/runtime.sh
+        -o /tmp/runtime.sh && exec bash /tmp/runtime.sh
+    environment:
+      # Umbrel-managed app password (umbrel-app.yml deterministicPassword).
+      # runtime.sh feeds this to ttyd --credential. Do not log it.
+      APP_PASSWORD: ${APP_PASSWORD}
+    volumes:
+      - ${APP_DATA_DIR}/data:/root
+    ports:
+      # IMAP/SMTP published ONLY on the Pro's Tailscale interface, so tailnet
+      # clients (JD) can reach Bridge. Nothing is exposed to the LAN or the
+      # internet. If the Pro's Tailscale IP ever changes, update these lines.
+      - "100.103.38.124:1143:143"
+      - "100.103.38.124:1025:25"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/7681"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
