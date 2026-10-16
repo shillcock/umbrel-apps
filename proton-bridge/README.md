@@ -2,7 +2,7 @@
 
 Unofficial Umbrel app that runs [Proton Mail Bridge](https://proton.me/mail/bridge)
 in Docker on your Umbrel Pro, with IMAP/SMTP published **only on the Pro's
-Tailscale IP** so tailnet clients (JD, your laptop, your phone) can use it.
+Tailscale IP** so tailnet clients (your laptop, your phone) can use it.
 Nothing is exposed to the LAN or the internet.
 
 - **App ID**: `proton-bridge`
